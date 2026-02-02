@@ -6,6 +6,7 @@
 #include "core/mode_selection.hpp"
 #include "core/pinout.hpp"
 #include "core/state.hpp"
+#include "input/DebouncedSwitchMatrixInput.hpp"
 #include "input/DebouncedGpioButtonInput.hpp"
 #include "input/NunchukInput.hpp"
 #include "reboot.hpp"
@@ -15,39 +16,48 @@
 
 Config config = default_config;
 
+const size_t num_rows = 3;
+const size_t num_cols = 4;
+const uint row_pins[num_rows] = { 0, 1, 2};
+const uint col_pins[num_cols] = { 6, 5, 4, 3 };
+
+// clang-format off
+
+const Button matrix[num_rows][num_cols] = {
+    { BTN_LF8, BTN_LF7, BTN_LF6, BTN_LF5},
+    { BTN_LF4, BTN_LF3, BTN_LF2, BTN_LF1},
+    { BTN_LT5, BTN_LT4, BTN_LT3, BTN_LT2}
+};
+
+// clang-format on
+const DiodeDirection diode_direction = DiodeDirection::COL2ROW;
+
 GpioButtonMapping button_mappings[] = {
-    { BTN_LF1, 2  },
-    { BTN_LF2, 3  },
-    { BTN_LF3, 4  },
-    { BTN_LF4, 5  },
-    { BTN_LF5, 1  },
+    { BTN_LT1, 7  },
 
-    { BTN_LT1, 6  },
-    { BTN_LT2, 7  },
-
-    { BTN_MB1, 0  },
+    { BTN_MB3, 8  },
+    { BTN_MB1, 9  },
     { BTN_MB2, 10 },
-    { BTN_MB3, 11 },
 
-    { BTN_RT1, 14 },
-    { BTN_RT2, 15 },
+    { BTN_RT1, 11 },
+    { BTN_RT2, 12 },
     { BTN_RT3, 13 },
-    { BTN_RT4, 12 },
-    { BTN_RT5, 16 },
+    { BTN_RT4, 14 },
+    { BTN_RT5, 15 },
 
-    { BTN_RF1, 26 },
-    { BTN_RF2, 21 },
-    { BTN_RF3, 19 },
+    { BTN_RF8, 16 },
     { BTN_RF4, 17 },
-
-    { BTN_RF5, 27 },
-    { BTN_RF6, 22 },
-    { BTN_RF7, 20 },
-    { BTN_RF8, 18 },
+    { BTN_RF7, 18 },
+    { BTN_RF3, 19 },
+    { BTN_RF6, 20 },
+    { BTN_RF2, 21 },
+    { BTN_RF5, 22 },
+    { BTN_RF1, 26 },
 };
 const size_t button_count = sizeof(button_mappings) / sizeof(GpioButtonMapping);
 
 DebouncedGpioButtonInput<button_count> gpio_input(button_mappings);
+DebouncedSwitchMatrixInput<num_rows, num_cols> matrix_input(row_pins, col_pins, matrix, diode_direction);
 
 const Pinout pinout = {
     .joybus_data = 28,
@@ -68,6 +78,7 @@ void setup() {
     static InputState inputs;
 
     // Create GPIO input source and use it to read button states for checking button holds.
+    matrix_input.UpdateInputs(inputs);
     gpio_input.UpdateInputs(inputs);
 
     // Check bootsel button hold as early as possible for safety.
@@ -117,6 +128,7 @@ void setup1() {
 
 void loop1() {
     if (backends != nullptr) {
+        matrix_input.UpdateInputs(backends[0]->GetInputs());
         gpio_input.UpdateInputs(backends[0]->GetInputs());
     }
 }
